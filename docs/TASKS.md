@@ -10,7 +10,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] HUB auto-deploy script: pull → test on HUB → restart → health check → auto-rollback → status to OneDrive
 - [x] HUB one-time installer (service + 5-minute deploy task)
 - [ ] **Jake (Wed session):** run `deploy/hub/install.ps1` on the HUB once
-- [ ] **Jake:** switch the scheduled build task to automatic approval
+- [x] Nightly scheduled build task (10:36pm Brisbane, auto-approve) created
 - [ ] Confirm first auto-deploy landed (read OneDrive\FLOW\status\deploy-status.json)
 
 ## Phase 1 — engine hardening
