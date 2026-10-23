@@ -11,7 +11,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] HUB one-time installer (service + 5-minute deploy task)
 - [ ] **Jake (Wed session):** run `deploy/hub/install.ps1` on the HUB once
 - [x] Nightly scheduled build task (10:36pm Brisbane, auto-approve) created
-- [ ] Confirm first auto-deploy landed (read OneDrive\FLOW\status\deploy-status.json)
+- [ ] Confirm first auto-deploy landed (read OneDrive\FLOW\status\deploy-status.json) — needs the linked computer; skip if not available
 
 ## Phase 1 — engine hardening
 - [ ] Watchdog flow: alert if heartbeat hasn't succeeded in 15 min
