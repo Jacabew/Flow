@@ -1,0 +1,16 @@
+{
+  "name": "ds-flow",
+  "version": "0.1.0",
+  "description": "DS Flow - DarkSpace's own lightweight automation and agent manager (n8n-style, no subscription).",
+  "type": "module",
+  "private": true,
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "license": "UNLICENSED"
+}
