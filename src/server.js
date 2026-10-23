@@ -3,6 +3,7 @@
 //   FLOW_DATA_DIR  default ./data   (keep OUTSIDE OneDrive)
 //   FLOW_API_KEY   required for /api/*
 //   FLOW_ALERT_NTFY_TOPIC  optional phone push alerts
+//   FLOW_STATUS_DIR  optional; daily.json etc. written here (OneDrive\FLOW\status on the HUB)
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';

@@ -10,6 +10,7 @@ export class Engine {
     this.alert = alert;
     this.now = now;
     this.flows = new Map();
+    this.startedAt = now().toISOString();
   }
 
   register(flow) {
@@ -55,7 +56,11 @@ export class Engine {
   }
 
   async #continue(flow, run) {
-    const ctx = { input: run.input, steps: run.steps, flowId: flow.id, runId: run.id, stop: null };
+    // store/now/engineStartedAt let system flows (e.g. watchdog) read run history.
+    const ctx = {
+      input: run.input, steps: run.steps, flowId: flow.id, runId: run.id, stop: null,
+      store: this.store, now: this.now, engineStartedAt: this.startedAt,
+    };
 
     for (let i = run.stepIndex; i < flow.steps.length; i++) {
       const step = flow.steps[i];

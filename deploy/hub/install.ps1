@@ -64,7 +64,9 @@ if (-not (Get-Service $Service -ErrorAction SilentlyContinue)) {
   nssm install $Service $nodeExe "$App\src\server.js"
 }
 nssm set $Service AppDirectory $App
-$envs = "FLOW_DATA_DIR=$Root\data", "FLOW_PORT=$Port", "FLOW_API_KEY=$apiKey"
+$statusDir = "$env:USERPROFILE\OneDrive\FLOW\status"
+New-Item -ItemType Directory -Force -Path $statusDir | Out-Null
+$envs = "FLOW_DATA_DIR=$Root\data", "FLOW_PORT=$Port", "FLOW_API_KEY=$apiKey", "FLOW_STATUS_DIR=$statusDir"
 if ($topic) { $envs += "FLOW_ALERT_NTFY_TOPIC=$topic" }
 nssm set $Service AppEnvironmentExtra @envs
 nssm set $Service AppStdout "$Root\logs\service.log"
@@ -75,7 +77,6 @@ nssm set $Service Start SERVICE_AUTO_START
 nssm restart $Service
 
 # --- Auto-deploy every 5 minutes ---------------------------------------------------------
-$statusDir = "$env:USERPROFILE\OneDrive\FLOW\status"
 $action  = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$App\deploy\hub\flow-deploy.ps1`" -StatusDir `"$statusDir`""
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
