@@ -17,10 +17,12 @@ Build sessions take the first unchecked item. Keep items small (one session each
 ## Phase 1 — engine hardening
 - [x] Watchdog flow: alert if heartbeat hasn't succeeded in 15 min
 - [x] Daily summary flow: writes yesterday's runs/failures to OneDrive\FLOW\status\daily.json
-- [ ] Run retention: archive runs older than 30 days to monthly files
-- [ ] Recover runs left "running" after a restart (mark failed + alert)
+- [x] Run retention: archive runs older than 30 days to monthly files
+- [x] Recover runs left "running" after a restart (mark failed + alert)
 - [ ] Step timeout for every step type (not just http)
 - [ ] Weekly cron-style schedule support (e.g. "Mon,Wed 07:30") — check existing `days` covers it first
+
+- [ ] If data\runs.json passes ~5 MB, move runs to an append-only log or SQLite (store rewrites the whole file on every update)
 
 ## Phase 2 — approval inbox + Mission Control tile
 - [ ] Mobile web page at /inbox: list pending approvals, approve/reject buttons (login with API key once, remembered)

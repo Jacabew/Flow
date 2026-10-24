@@ -73,7 +73,8 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env }) {
     }
   });
 
-  return { server, engine, store, ready: loadFlows(engine, flowsDir) };
+    const ready = loadFlows(engine, flowsDir).then(() => engine.recoverInterrupted());
+  return { server, engine, store, ready };
 }
 
 async function readJson(req) {

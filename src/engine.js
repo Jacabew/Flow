@@ -2,7 +2,8 @@
 // pauses for approvals, and raises alerts. Deterministic: no AI calls in here.
 import { stepTypes } from './steps/index.js';
 
-const MAX_RUNS_KEPT = 5000;
+// Safety cap only. Normal housekeeping is the retention flow (archives runs older than 30 days).
+const MAX_RUNS_KEPT = 20000;
 
 export class Engine {
   constructor({ store, alert = async () => {}, now = () => new Date() }) {
@@ -115,6 +116,17 @@ export class Engine {
     run.finishedAt = this.now().toISOString();
     this.store.update('runs', run.id, run);
     return { runId: run.id, status: run.status };
+  }
+
+  // Call once at start-up, before the scheduler. Any run still "running" was cut off by a
+  // restart or crash (single process), so mark it failed and alert. Approval waits are left alone.
+  async recoverInterrupted() {
+    const stuck = this.store.list('runs', (r) => r.status === 'running');
+    for (const run of stuck) {
+      this.#log(run, 'interrupted by a restart');
+      await this.#fail({ id: run.flowId }, run, `interrupted by a restart (step ${run.stepIndex + 1})`);
+    }
+    return { recovered: stuck.length };
   }
 
   async decide(approvalId, decision, by = 'jake') {

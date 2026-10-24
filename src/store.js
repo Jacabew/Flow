@@ -65,6 +65,17 @@ export class Store {
     return this.load(name).filter(filter);
   }
 
+  // Remove rows matching `filter`; returns the removed rows.
+  remove(name, filter) {
+    const rows = this.load(name);
+    const removed = [];
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (filter(rows[i])) removed.unshift(...rows.splice(i, 1));
+    }
+    if (removed.length) this.save(name);
+    return removed;
+  }
+
   // Keep files small: drop oldest rows beyond `max`.
   trim(name, max) {
     const rows = this.load(name);
