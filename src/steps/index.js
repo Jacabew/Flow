@@ -12,7 +12,9 @@ export const stepTypes = {
       method: step.method ?? 'GET',
       headers: { 'content-type': 'application/json', ...(resolve(step.headers, ctx) ?? {}) },
       body: step.body !== undefined ? JSON.stringify(resolve(step.body, ctx)) : undefined,
-      signal: AbortSignal.timeout(step.timeoutMs ?? 30000),
+      signal: ctx.signal
+        ? AbortSignal.any([ctx.signal, AbortSignal.timeout(step.timeoutMs ?? 30000)])
+        : AbortSignal.timeout(step.timeoutMs ?? 30000),
     });
     const text = await res.text();
     let body;
@@ -22,6 +24,7 @@ export const stepTypes = {
   },
 
   // Plain JavaScript: step.fn(ctx) => value. For shaping data between steps.
+  // Time-limited like every step (default 5 min, step.timeoutMs to change); ctx.signal aborts on timeout.
   async code(step, ctx) {
     return await step.fn(ctx);
   },
@@ -34,8 +37,11 @@ export const stepTypes = {
   },
 
   // Wait a fixed time (short waits only; long waits should be a new scheduled trigger).
-  async wait(step) {
-    await new Promise((r) => setTimeout(r, step.ms ?? 1000));
+  async wait(step, ctx) {
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(resolve, step.ms ?? 1000);
+      ctx?.signal?.addEventListener('abort', () => { clearTimeout(t); reject(ctx.signal.reason); }, { once: true });
+    });
     return { waitedMs: step.ms ?? 1000 };
   },
 

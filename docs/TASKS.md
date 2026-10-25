@@ -19,8 +19,8 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] Daily summary flow: writes yesterday's runs/failures to OneDrive\FLOW\status\daily.json
 - [x] Run retention: archive runs older than 30 days to monthly files
 - [x] Recover runs left "running" after a restart (mark failed + alert)
-- [ ] Step timeout for every step type (not just http)
-- [ ] Weekly cron-style schedule support (e.g. "Mon,Wed 07:30") — check existing `days` covers it first
+- [x] Step timeout for every step type (not just http)
+- [x] Weekly cron-style schedule support (e.g. "Mon,Wed 07:30") — check existing `days` covers it first
 
 - [ ] If data\runs.json passes ~5 MB, move runs to an append-only log or SQLite (store rewrites the whole file on every update)
 

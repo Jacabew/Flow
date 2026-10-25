@@ -1,6 +1,21 @@
 // DS Flow engine: runs flows step by step, logs every run, retries failures,
 // pauses for approvals, and raises alerts. Deterministic: no AI calls in here.
 import { stepTypes } from './steps/index.js';
+import { normalizeSchedule } from './scheduler.js';
+
+// Every step attempt is time-limited so a hung step can't block its run forever.
+// Override per step with step.timeoutMs. http keeps its own abort (default 30s) with a little headroom here.
+export const DEFAULT_STEP_TIMEOUT_MS = 5 * 60_000;
+
+export function stepTimeoutMs(step) {
+  if (step.timeoutMs != null) {
+    // http aborts its own request at timeoutMs; give it a moment to report the clearer error.
+    return step.type === 'http' ? step.timeoutMs + 1000 : step.timeoutMs;
+  }
+  if (step.type === 'http') return 30_000 + 1000;
+  if (step.type === 'wait') return Math.max(DEFAULT_STEP_TIMEOUT_MS, (step.ms ?? 1000) + 5000);
+  return DEFAULT_STEP_TIMEOUT_MS;
+}
 
 // Safety cap only. Normal housekeeping is the retention flow (archives runs older than 30 days).
 const MAX_RUNS_KEPT = 20000;
@@ -18,6 +33,9 @@ export class Engine {
     if (!flow?.id || !Array.isArray(flow.steps)) throw new Error('A flow needs an id and a steps array');
     for (const s of flow.steps) {
       if (!stepTypes[s.type]) throw new Error(`Flow ${flow.id}: unknown step type "${s.type}"`);
+    }
+    if (flow.schedule) {
+      try { normalizeSchedule(flow.schedule); } catch (err) { throw new Error(`Flow ${flow.id}: ${err.message}`); }
     }
     this.flows.set(flow.id, { enabled: true, ...flow });
   }
@@ -72,7 +90,7 @@ export class Engine {
       let lastErr;
       for (let a = 1; a <= attempts; a++) {
         try {
-          output = await stepTypes[step.type](step, ctx);
+          output = await withTimeout(stepTypes[step.type], step, ctx, stepTimeoutMs(step));
           lastErr = null;
           break;
         } catch (err) {
@@ -187,6 +205,26 @@ export class Engine {
       pendingApprovals: pending.length,
       flows: [...this.flows.keys()].map((id) => ({ id, enabled: this.isEnabled(id) })),
     };
+  }
+}
+
+// Runs one step attempt with a time limit. ctx.signal aborts on timeout so steps that can
+// stop cleanly (fetch, timers) do; work that ignores the signal is abandoned, not killed.
+async function withTimeout(handler, step, ctx, ms) {
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(`timed out after ${ms} ms`);
+      controller.abort(err);
+      reject(err);
+    }, ms);
+  });
+  ctx.signal = controller.signal; // same ctx object: steps like `if` set ctx.stop on it
+  try {
+    return await Promise.race([handler(step, ctx), timeout]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
