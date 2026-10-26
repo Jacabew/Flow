@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { Store } from './store.js';
 import { Engine } from './engine.js';
 import { makeAlerter } from './alerts.js';
+import { INBOX_HTML } from './inbox.js';
 
 export const VERSION = '0.1.0';
 
@@ -37,6 +38,18 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env }) {
         return send(200, { ok: true, version: VERSION, startedAt, flows: engine.flows.size });
       }
 
+      // Phone approval inbox. The page is static and holds no data; it calls /api/* with the key.
+      if (url.pathname === '/inbox' && req.method === 'GET') {
+        res.writeHead(200, {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'x-frame-options': 'DENY',
+          'referrer-policy': 'no-referrer',
+          'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'",
+        });
+        return res.end(INBOX_HTML);
+      }
+
       // Webhook trigger: POST /hooks/<flowId>?secret=<flow.webhookSecret>
       if (parts[0] === 'hooks' && req.method === 'POST') {
         const flow = engine.flows.get(parts[1]);
@@ -63,6 +76,7 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env }) {
         return send(200, store.list('approvals', (a) => a.status === 'pending'));
       }
       if (parts[1] === 'approvals' && ['approve', 'reject'].includes(parts[3]) && req.method === 'POST') {
+        if (!store.get('approvals', parts[2])) return send(404, { error: 'approval not found' });
         return send(200, await engine.decide(parts[2], parts[3]));
       }
       if (url.pathname === '/api/alerts') return send(200, store.list('alerts').slice(-50).reverse());

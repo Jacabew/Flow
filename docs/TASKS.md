@@ -25,7 +25,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [ ] If data\runs.json passes ~5 MB, move runs to an append-only log or SQLite (store rewrites the whole file on every update)
 
 ## Phase 2 — approval inbox + Mission Control tile
-- [ ] Mobile web page at /inbox: list pending approvals, approve/reject buttons (login with API key once, remembered)
+- [x] Mobile web page at /inbox: list pending approvals, approve/reject buttons (login with API key once, remembered)
 - [ ] Decide how Jake reaches /inbox from his phone (Caddy route on HUB vs DSOS proxies it) → DSOS_REQUESTS if DSOS
 - [ ] `/api/summary` shape frozen + documented for the DSOS Mission Control tile → DSOS_REQUESTS.md
 
