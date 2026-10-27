@@ -26,8 +26,8 @@ Build sessions take the first unchecked item. Keep items small (one session each
 
 ## Phase 2 — approval inbox + Mission Control tile
 - [x] Mobile web page at /inbox: list pending approvals, approve/reject buttons (login with API key once, remembered)
-- [ ] Decide how Jake reaches /inbox from his phone (Caddy route on HUB vs DSOS proxies it) → DSOS_REQUESTS if DSOS
-- [ ] `/api/summary` shape frozen + documented for the DSOS Mission Control tile → DSOS_REQUESTS.md
+- [x] Decide how Jake reaches /inbox from his phone (Caddy route on HUB vs DSOS proxies it) → DSOS_REQUESTS if DSOS
+- [x] `/api/summary` shape frozen + documented for the DSOS Mission Control tile → DSOS_REQUESTS.md
 
 ## Phase 3 — move existing automations onto DS Flow (shadow mode first)
 - [ ] DSOS connector (reads/writes DSOS API) — needs DSOS API key on HUB

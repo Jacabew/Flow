@@ -192,16 +192,31 @@ export class Engine {
     run.log.push({ at: this.now().toISOString(), message });
   }
 
-  // One-glance status for the Mission Control tile.
+  // One-glance status for the Mission Control tile. Shape is frozen as schema 1 and
+  // documented in docs/API.md: fields may be added, never renamed or removed.
   summary(sinceHours = 24) {
-    const since = this.now().getTime() - sinceHours * 3600_000;
+    const now = this.now();
+    const since = now.getTime() - sinceHours * 3600_000;
     const recent = this.store.list('runs', (r) => Date.parse(r.startedAt) >= since);
     const failed = recent.filter((r) => r.status === 'failed');
     const pending = this.store.list('approvals', (a) => a.status === 'pending');
+    const status = failed.length ? 'red' : pending.length ? 'amber' : 'green';
+    const headline = failed.length
+      ? `Automations: ${failed.length} failed`
+      : pending.length
+        ? `Automations: ${pending.length} waiting for approval`
+        : 'Automations: all green';
     return {
+      schema: 1,
+      generatedAt: now.toISOString(),
+      sinceHours,
       ok: failed.length === 0,
+      status,
+      headline,
       runs: recent.length,
       failed: failed.length,
+      failedFlows: [...new Set(failed.map((r) => r.flowId))].sort(),
+      lastFailureAt: failed.length ? failed.map((r) => r.startedAt).sort().at(-1) : null,
       pendingApprovals: pending.length,
       flows: [...this.flows.keys()].map((id) => ({ id, enabled: this.isEnabled(id) })),
     };

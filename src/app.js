@@ -2,6 +2,7 @@
 // Auth: send header `x-api-key: <FLOW_API_KEY>`. /health and /hooks/* are the exceptions
 // (/hooks use a per-flow secret instead).
 import http from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -20,7 +21,30 @@ export async function loadFlows(engine, dir) {
   }
 }
 
-export function createApp({ dataDir, apiKey, flowsDir, env = process.env }) {
+// Brute-force guard for when /inbox is reachable from outside (via Caddy on the HUB):
+// a client that sends 10 wrong keys within 15 min gets 429 until the window clears.
+export const AUTH_MAX_FAILS = 10;
+export const AUTH_WINDOW_MS = 15 * 60_000;
+
+function keyMatches(given, expected) {
+  if (!expected || typeof given !== 'string') return false;
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Behind Caddy every request comes from loopback; Caddy appends the real client IP as the
+// LAST X-Forwarded-For entry, so use that (earlier entries can be forged by the client).
+function clientId(req) {
+  const remote = req.socket.remoteAddress ?? '';
+  const loopback = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
+  const xff = req.headers['x-forwarded-for'];
+  if (loopback && typeof xff === 'string' && xff.trim()) return xff.split(',').at(-1).trim();
+  return remote;
+}
+
+export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = () => Date.now() }) {
+  const authFails = new Map(); // clientId -> [timestamps of failed attempts]
   const store = new Store(dataDir);
   const engine = new Engine({ store, alert: makeAlerter(store, env) });
   const startedAt = new Date().toISOString();
@@ -57,7 +81,16 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env }) {
         return send(202, await engine.trigger(flow.id, await readJson(req), 'webhook'));
       }
 
-      if (!apiKey || req.headers['x-api-key'] !== apiKey) return send(401, { error: 'unauthorised' });
+      const who = clientId(req);
+      const t = now();
+      const fails = (authFails.get(who) ?? []).filter((at) => t - at < AUTH_WINDOW_MS);
+      if (fails.length >= AUTH_MAX_FAILS) return send(429, { error: 'too many failed attempts, try again later' });
+      if (!keyMatches(req.headers['x-api-key'], apiKey)) {
+        fails.push(t);
+        if (authFails.size > 1000) authFails.clear(); // bound memory; worst case resets counters
+        authFails.set(who, fails);
+        return send(401, { error: 'unauthorised' });
+      }
 
       if (url.pathname === '/api/summary') return send(200, engine.summary());
       if (url.pathname === '/api/flows') return send(200, engine.summary().flows);
@@ -87,7 +120,7 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env }) {
     }
   });
 
-    const ready = loadFlows(engine, flowsDir).then(() => engine.recoverInterrupted());
+  const ready = loadFlows(engine, flowsDir).then(() => engine.recoverInterrupted());
   return { server, engine, store, ready };
 }
 
