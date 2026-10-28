@@ -22,7 +22,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] Step timeout for every step type (not just http)
 - [x] Weekly cron-style schedule support (e.g. "Mon,Wed 07:30") — check existing `days` covers it first
 
-- [ ] If data\runs.json passes ~5 MB, move runs to an append-only log or SQLite (store rewrites the whole file on every update)
+- [x] Move runs off whole-file JSON to an append-only log (done ahead of the ~5 MB trigger: 30 days of heartbeat/watchdog runs would pass it)
 
 ## Phase 2 — approval inbox + Mission Control tile
 - [x] Mobile web page at /inbox: list pending approvals, approve/reject buttons (login with API key once, remembered)
