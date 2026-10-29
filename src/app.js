@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Store } from './store.js';
+import { makeDsosClient } from './connectors/dsos.js';
 import { Engine } from './engine.js';
 import { makeAlerter } from './alerts.js';
 import { INBOX_HTML } from './inbox.js';
@@ -46,7 +47,8 @@ function clientId(req) {
 export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = () => Date.now() }) {
   const authFails = new Map(); // clientId -> [timestamps of failed attempts]
   const store = new Store(dataDir);
-  const engine = new Engine({ store, alert: makeAlerter(store, env) });
+  const dsos = makeDsosClient({ env });
+  const engine = new Engine({ store, alert: makeAlerter(store, env), connectors: { dsos } });
   const startedAt = new Date().toISOString();
 
   const server = http.createServer(async (req, res) => {
@@ -111,6 +113,12 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = 
       if (parts[1] === 'approvals' && ['approve', 'reject'].includes(parts[3]) && req.method === 'POST') {
         if (!store.get('approvals', parts[2])) return send(404, { error: 'approval not found' });
         return send(200, await engine.decide(parts[2], parts[3]));
+      }
+      // Connector status (never includes tokens) and the shadow log of writes not sent.
+      if (url.pathname === '/api/connectors') return send(200, { dsos: dsos.config() });
+      if (url.pathname === '/api/shadow') {
+        const flow = url.searchParams.get('flow');
+        return send(200, store.list('shadow', (r) => !flow || r.flowId === flow).slice(-100).reverse());
       }
       if (url.pathname === '/api/alerts') return send(200, store.list('alerts').slice(-50).reverse());
 

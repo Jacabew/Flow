@@ -66,7 +66,7 @@ if (-not (Get-Service $Service -ErrorAction SilentlyContinue)) {
 nssm set $Service AppDirectory $App
 $statusDir = "$env:USERPROFILE\OneDrive\FLOW\status"
 New-Item -ItemType Directory -Force -Path $statusDir | Out-Null
-$envs = "FLOW_DATA_DIR=$Root\data", "FLOW_PORT=$Port", "FLOW_API_KEY=$apiKey", "FLOW_STATUS_DIR=$statusDir"
+$envs = "FLOW_DATA_DIR=$Root\data", "FLOW_PORT=$Port", "FLOW_API_KEY=$apiKey", "FLOW_STATUS_DIR=$statusDir", "FLOW_SECRETS_DIR=$Root\secrets"
 if ($topic) { $envs += "FLOW_ALERT_NTFY_TOPIC=$topic" }
 nssm set $Service AppEnvironmentExtra @envs
 nssm set $Service AppStdout "$Root\logs\service.log"

@@ -30,7 +30,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] `/api/summary` shape frozen + documented for the DSOS Mission Control tile → DSOS_REQUESTS.md
 
 ## Phase 3 — move existing automations onto DS Flow (shadow mode first)
-- [ ] DSOS connector (reads/writes DSOS API) — needs DSOS API key on HUB
+- [x] DSOS connector (reads/writes DSOS API; writes shadow by default) — works once the DSOS token is on the HUB (DSOS_REQUESTS #3)
 - [ ] Daily Xero back-feed: shadow run, compare with DSOS's own sync for 1 week
 - [ ] Recurring invoices (workshop rent): shadow run only
 - [ ] Enquiry responder: shadow run (drafts, doesn't send)

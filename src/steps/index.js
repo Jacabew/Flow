@@ -4,6 +4,11 @@
 //
 // Special return: { __pause: 'approval', ... } tells the engine to stop and wait for a human.
 
+import { makeDsosClient } from '../connectors/dsos.js';
+
+let defaultDsos;
+const dsosClient = (ctx) => ctx.connectors?.dsos ?? (defaultDsos ??= makeDsosClient());
+
 export const stepTypes = {
   // Call any HTTP API. Connectors are built on top of this.
   async http(step, ctx) {
@@ -21,6 +26,28 @@ export const stepTypes = {
     try { body = JSON.parse(text); } catch { body = text; }
     if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}: ${String(text).slice(0, 300)}`);
     return { status: res.status, body };
+  },
+
+  // DSOS API. { type: 'dsos', method?, path: '/api/v1/...', query?, body?, live? }
+  // Writes are shadow (logged, not sent) unless live: true AND FLOW_DSOS_WRITES=live.
+  async dsos(step, ctx) {
+    const out = await dsosClient(ctx).request({
+      method: step.method ?? 'GET',
+      path: resolve(step.path, ctx),
+      query: resolve(step.query, ctx),
+      body: resolve(step.body, ctx),
+      live: step.live === true,
+      signal: ctx.signal,
+      timeoutMs: step.timeoutMs ?? 30000,
+    });
+    if (out.shadow && ctx.store) {
+      ctx.store.insert('shadow', {
+        connector: 'dsos', flowId: ctx.flowId, runId: ctx.runId,
+        at: (ctx.now?.() ?? new Date()).toISOString(), ...out.wouldSend,
+      });
+      ctx.store.trim('shadow', 5000);
+    }
+    return out;
   },
 
   // Plain JavaScript: step.fn(ctx) => value. For shaping data between steps.

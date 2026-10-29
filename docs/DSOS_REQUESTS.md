@@ -29,3 +29,10 @@ inbox and the two approval endpoints it uses are exposed; everything else return
 - Show `headline` as the tile text; colour from `status` (green / amber / red). Tap → `https://flow.darkspace.au/inbox`.
 - If the call fails or times out (2 s), show grey "Automations: no signal" — DSOS must not break if DS Flow is down.
 - Shape is frozen as schema 1: see `docs/API.md` in the Flow repo.
+
+## 3. A read-only API token for DS Flow (added 29 Oct)
+DS Flow's DSOS connector is built and waiting for a token. Nothing uses it until then.
+- In DSOS, issue DS Flow **its own scoped token**, read-only for now (jobs, clients, invoices, todos, mission-control attention). Not the full API token.
+- Save it on the HUB as `C:\Flow\secrets\dsos-token.txt` (one line). No restart needed. Never in either repo.
+- **Test (1 min):** `Invoke-RestMethod http://127.0.0.1:5680/api/connectors -Headers @{ 'x-api-key' = (Get-Content C:\Flow\secrets\api-key.txt) }` shows `configured: True`.
+- Writes stay in shadow mode (logged, not sent) until a flow needs them and Jake says yes in CHECKIN.

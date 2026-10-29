@@ -2,6 +2,7 @@
 // pauses for approvals, and raises alerts. Deterministic: no AI calls in here.
 import { stepTypes } from './steps/index.js';
 import { normalizeSchedule } from './scheduler.js';
+import { isDsosWrite } from './connectors/dsos.js';
 
 // Every step attempt is time-limited so a hung step can't block its run forever.
 // Override per step with step.timeoutMs. http keeps its own abort (default 30s) with a little headroom here.
@@ -10,19 +11,28 @@ export const DEFAULT_STEP_TIMEOUT_MS = 5 * 60_000;
 export function stepTimeoutMs(step) {
   if (step.timeoutMs != null) {
     // http aborts its own request at timeoutMs; give it a moment to report the clearer error.
-    return step.type === 'http' ? step.timeoutMs + 1000 : step.timeoutMs;
+    return step.type === 'http' || step.type === 'dsos' ? step.timeoutMs + 1000 : step.timeoutMs;
   }
-  if (step.type === 'http') return 30_000 + 1000;
+  if (step.type === 'http' || step.type === 'dsos') return 30_000 + 1000;
   if (step.type === 'wait') return Math.max(DEFAULT_STEP_TIMEOUT_MS, (step.ms ?? 1000) + 5000);
   return DEFAULT_STEP_TIMEOUT_MS;
+}
+
+// External reads retry twice by default. DSOS writes never retry by default: a write that
+// timed out may still have landed, and retrying it could double it.
+export function defaultRetries(step) {
+  if (step.type === 'http') return 2;
+  if (step.type === 'dsos') return isDsosWrite(step.method) ? 0 : 2;
+  return 0;
 }
 
 // Safety cap only. Normal housekeeping is the retention flow (archives runs older than 30 days).
 const MAX_RUNS_KEPT = 20000;
 
 export class Engine {
-  constructor({ store, alert = async () => {}, now = () => new Date() }) {
+  constructor({ store, alert = async () => {}, now = () => new Date(), connectors = {} }) {
     this.store = store;
+    this.connectors = connectors;
     this.alert = alert;
     this.now = now;
     this.flows = new Map();
@@ -78,13 +88,13 @@ export class Engine {
     // store/now/engineStartedAt let system flows (e.g. watchdog) read run history.
     const ctx = {
       input: run.input, steps: run.steps, flowId: flow.id, runId: run.id, stop: null,
-      store: this.store, now: this.now, engineStartedAt: this.startedAt,
+      store: this.store, now: this.now, engineStartedAt: this.startedAt, connectors: this.connectors,
     };
 
     for (let i = run.stepIndex; i < flow.steps.length; i++) {
       const step = flow.steps[i];
       const name = step.name ?? `${i + 1}-${step.type}`;
-      const attempts = 1 + (step.retries ?? (step.type === 'http' ? 2 : 0));
+      const attempts = 1 + (step.retries ?? defaultRetries(step));
 
       let output;
       let lastErr;

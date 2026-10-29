@@ -52,4 +52,17 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 | `GET /api/approvals` | Pending approvals. |
 | `POST /api/approvals/:id/approve` / `reject` | Decide. 404 if unknown. |
 | `GET /api/alerts` | Newest 50 alerts. |
+| `GET /api/connectors` | `{ dsos: { baseUrl, configured, tokenSource, writesLive } }`. Never includes tokens. |
+| `GET /api/shadow?flow=` | Newest 100 writes logged in shadow mode (not sent): `{ connector, flowId, runId, at, method, path, query, body }`. |
 | `POST /hooks/:flowId?secret=…` | Webhook trigger. 404 on wrong secret. |
+
+## Step type `dsos` (for flow authors)
+```js
+{ type: 'dsos', name: 'jobs', path: '/api/v1/jobs', query: { status: 'open' } }             // read
+{ type: 'dsos', method: 'POST', path: '/api/v1/todos', body: (c) => ({ ... }) }            // shadow write
+{ type: 'dsos', method: 'POST', path: '/api/v1/todos', body: { ... }, live: true }          // live only if FLOW_DSOS_WRITES=live
+```
+- Output: read `{ status, body }`; shadow write `{ shadow: true, reason, wouldSend }`; live write `{ status, body, live: true }`.
+- `path` must start with `/api/v1/`, plain characters only (no `%`, `?`, `..`); put parameters in `query`.
+- Reads retry twice, writes never retry (set `retries` to override). Timeout 30 s (`timeoutMs`).
+- HUB config: `FLOW_DSOS_URL` (default `http://127.0.0.1:3000`), token in `FLOW_DSOS_TOKEN` or `%FLOW_SECRETS_DIR%\dsos-token.txt`.

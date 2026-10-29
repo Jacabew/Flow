@@ -3,6 +3,8 @@
 //   FLOW_DATA_DIR  default ./data   (keep OUTSIDE OneDrive)
 //   FLOW_API_KEY   required for /api/*
 //   FLOW_ALERT_NTFY_TOPIC  optional phone push alerts
+//   FLOW_SECRETS_DIR optional; connector tokens as files (C:\Flow\secrets on the HUB), e.g. dsos-token.txt
+//   FLOW_DSOS_URL / FLOW_DSOS_TOKEN / FLOW_DSOS_WRITES  see src/connectors/dsos.js
 //   FLOW_STATUS_DIR  optional; daily.json etc. written here (OneDrive\FLOW\status on the HUB)
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
