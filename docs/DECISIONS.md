@@ -33,3 +33,9 @@ Jake can veto any of these in the Wednesday session.
 - 2026-10-29 · **DSOS writes never auto-retry** (Claude). A timed-out write may have landed; retrying could double it. Reads retry twice like http.
 - 2026-10-29 · **Asked DSOS for a scoped, read-only token for DS Flow** (Claude), not the full API token. Write scopes get requested per flow when one needs them (DSOS_REQUESTS #3).
 - 2026-10-29 · **Skipped the two "needs the linked computer" Phase 0 tasks** again: this run had no access to the HUB/OneDrive.
+- 2026-10-30 · **DS Flow schedules the Xero back-feed; it doesn't do it** (Claude). DSOS already has the Xero OAuth and the back-feed code (D24/D46). Copying either into DS Flow would mean two Xero integrations and two sets of credentials. The shadow week proves DS Flow can own the trigger and the alerting; the sync itself stays in DSOS.
+- 2026-10-30 · **"Compare" = did DSOS's own run happen OK each Brisbane day, seen from DS Flow** (Claude). DS Flow can't fetch Xero itself, so it can't diff payment data independently. Ready to switch = 7 matching days in a row (a day DS Flow didn't run counts as a miss).
+- 2026-10-30 · **Runs at 08:30 Brisbane** (Claude). DSOS's "daily morning job" time isn't documented anywhere I can read; 08:30 is after any normal morning run. If DSOS runs later, days show `dsos-missed` and the time gets moved.
+- 2026-10-30 · **No alert on DSOS misses/failures during the shadow week** (Claude). Shadow = observe only; DS Flow's own failures (bad token, DSOS down) still alert as usual. Alerting on DSOS failures starts at switch-over.
+- 2026-10-30 · **Status endpoint shape assumed** `{ lastRunAt, ok, error }` (Claude), with tolerant parsing of common variants. Asked for in DSOS_REQUESTS #4.
+- 2026-10-30 · **Skipped the two "needs the linked computer" Phase 0 tasks** again: no access to the HUB/OneDrive this run.

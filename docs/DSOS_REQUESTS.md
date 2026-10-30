@@ -36,3 +36,10 @@ DS Flow's DSOS connector is built and waiting for a token. Nothing uses it until
 - Save it on the HUB as `C:\Flow\secrets\dsos-token.txt` (one line). No restart needed. Never in either repo.
 - **Test (1 min):** `Invoke-RestMethod http://127.0.0.1:5680/api/connectors -Headers @{ 'x-api-key' = (Get-Content C:\Flow\secrets\api-key.txt) }` shows `configured: True`.
 - Writes stay in shadow mode (logged, not sent) until a flow needs them and Jake says yes in CHECKIN.
+
+## 4. Xero back-feed status endpoint (added 30 Oct)
+DS Flow is shadowing DSOS's daily Xero back-feed for a week before taking over its schedule (and alerting when it fails).
+- Add `GET /api/v1/xero/sync-status` → `{ "lastRunAt": "<ISO time of last back-feed run>", "ok": true|false, "error": "<text or null>" }`.
+  Read-only; include it in DS Flow's read-only token scope (#3).
+- **Later, only at switch-over (Jake's yes in CHECKIN first):** let DS Flow's token call the same sync the "Refresh from Xero" button runs, e.g. `POST /api/v1/xero/sync` (rate-limited as now), and turn off DSOS's own morning cron. Not now.
+- **Test (1 min):** after #3 and this, `Invoke-RestMethod http://127.0.0.1:5680/api/shadow/xero-backfeed -Headers @{ 'x-api-key' = (Get-Content C:\Flow\secrets\api-key.txt) }` the next morning shows today as `match`.

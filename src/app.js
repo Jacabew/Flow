@@ -11,6 +11,7 @@ import { makeDsosClient } from './connectors/dsos.js';
 import { Engine } from './engine.js';
 import { makeAlerter } from './alerts.js';
 import { INBOX_HTML } from './inbox.js';
+import { backfeedReport } from './backfeed.js';
 
 export const VERSION = '0.1.0';
 
@@ -116,6 +117,7 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = 
       }
       // Connector status (never includes tokens) and the shadow log of writes not sent.
       if (url.pathname === '/api/connectors') return send(200, { dsos: dsos.config() });
+      if (url.pathname === '/api/shadow/xero-backfeed') return send(200, backfeedReport(store, engine.now()));
       if (url.pathname === '/api/shadow') {
         const flow = url.searchParams.get('flow');
         return send(200, store.list('shadow', (r) => !flow || r.flowId === flow).slice(-100).reverse());

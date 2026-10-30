@@ -54,6 +54,7 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 | `GET /api/alerts` | Newest 50 alerts. |
 | `GET /api/connectors` | `{ dsos: { baseUrl, configured, tokenSource, writesLive } }`. Never includes tokens. |
 | `GET /api/shadow?flow=` | Newest 100 writes logged in shadow mode (not sent): `{ connector, flowId, runId, at, method, path, query, body }`. |
+| `GET /api/shadow/xero-backfeed` | Xero back-feed shadow week: `{ from, to, days: [{ day, verdict }], matched, streak, readyToSwitch, headline, recent }`. Verdicts: `match`, `dsos-failed`, `dsos-missed`, `no-data`, `flow-missed` (DS Flow didn't run that day). |
 | `POST /hooks/:flowId?secret=…` | Webhook trigger. 404 on wrong secret. |
 
 ## Step type `dsos` (for flow authors)
