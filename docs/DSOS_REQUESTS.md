@@ -43,3 +43,11 @@ DS Flow is shadowing DSOS's daily Xero back-feed for a week before taking over i
   Read-only; include it in DS Flow's read-only token scope (#3).
 - **Later, only at switch-over (Jake's yes in CHECKIN first):** let DS Flow's token call the same sync the "Refresh from Xero" button runs, e.g. `POST /api/v1/xero/sync` (rate-limited as now), and turn off DSOS's own morning cron. Not now.
 - **Test (1 min):** after #3 and this, `Invoke-RestMethod http://127.0.0.1:5680/api/shadow/xero-backfeed -Headers @{ 'x-api-key' = (Get-Content C:\Flow\secrets\api-key.txt) }` the next morning shows today as `match`.
+
+## 5. Recurring invoice schedules, read-only (added 31 Oct)
+DS Flow is shadowing DSOS's recurring invoices (workshop rent) before it ever triggers them. It never creates invoices or touches Xero.
+- Add (or confirm) `GET /api/v1/recurring-invoices` → list of schedules, each with:
+  `id`, `description`, `active`, `nextRunOn` (Brisbane date DSOS will next generate it, `YYYY-MM-DD`), `amountExGst`,
+  and `recentRuns`: last 3 generated `[{ date, invoiceId, number, totalExGst }]`. Include it in DS Flow's read-only token scope (#3).
+- **Later, only at switch-over (Jake's yes in CHECKIN first):** let DS Flow's token call `POST /api/v1/recurring-invoices/generate-due` `{ day, scheduleIds }` (runs the same code as DSOS's own job, idempotent per schedule per period) and turn off DSOS's own recurring cron. Not now.
+- **Test (1 min):** after #3 and this, `Invoke-RestMethod http://127.0.0.1:5680/api/shadow/recurring-invoices -Headers @{ 'x-api-key' = (Get-Content C:\Flow\secrets\api-key.txt) }` the evening after a rent invoice shows that day as `match`.

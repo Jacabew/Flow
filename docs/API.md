@@ -55,6 +55,7 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 | `GET /api/connectors` | `{ dsos: { baseUrl, configured, tokenSource, writesLive } }`. Never includes tokens. |
 | `GET /api/shadow?flow=` | Newest 100 writes logged in shadow mode (not sent): `{ connector, flowId, runId, at, method, path, query, body }`. |
 | `GET /api/shadow/xero-backfeed` | Xero back-feed shadow week: `{ from, to, days: [{ day, verdict }], matched, streak, readyToSwitch, headline, recent }`. Verdicts: `match`, `dsos-failed`, `dsos-missed`, `no-data`, `flow-missed` (DS Flow didn't run that day). |
+| `GET /api/shadow/recurring-invoices` | Recurring invoices shadow, last 31 checked days: `{ from, to, days: [{ day, verdict, invoices }], cleanDays, matchedInvoices, mismatchDays, readyToSwitch, headline, upcoming, recentMismatches }`. Day verdicts: `match`, `quiet` (nothing due, nothing made), `mismatch` (an item was `dsos-missed`, `amount-differs` or `unexpected`), `flow-missed`. Ready = 31/31 clean and ≥1 invoice matched. |
 | `POST /hooks/:flowId?secret=…` | Webhook trigger. 404 on wrong secret. |
 
 ## Step type `dsos` (for flow authors)

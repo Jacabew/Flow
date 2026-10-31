@@ -33,7 +33,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] DSOS connector (reads/writes DSOS API; writes shadow by default) — works once the DSOS token is on the HUB (DSOS_REQUESTS #3)
 - [x] Daily Xero back-feed: shadow run, compare with DSOS's own sync for 1 week (flow built; the week starts once DSOS_REQUESTS #3 + #4 are done)
 - [ ] Xero back-feed switch-over: when `/api/shadow/xero-backfeed` shows 7/7, put a yes/no in CHECKIN (DS Flow triggers DSOS's sync, DSOS drops its own cron). Needs DSOS to accept DS Flow's token on the sync endpoint → DSOS_REQUESTS
-- [ ] Recurring invoices (workshop rent): shadow run only
+- [x] Recurring invoices (workshop rent): shadow run only (flow built; the 31-day window starts once DSOS_REQUESTS #3 + #5 are done)
 - [ ] Enquiry responder: shadow run (drafts, doesn't send)
 
 ## Phase 4 — agent registry + guardrails
