@@ -56,7 +56,8 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 | `GET /api/shadow?flow=` | Newest 100 writes logged in shadow mode (not sent): `{ connector, flowId, runId, at, method, path, query, body }`. |
 | `GET /api/shadow/xero-backfeed` | Xero back-feed shadow week: `{ from, to, days: [{ day, verdict }], matched, streak, readyToSwitch, headline, recent }`. Verdicts: `match`, `dsos-failed`, `dsos-missed`, `no-data`, `flow-missed` (DS Flow didn't run that day). |
 | `GET /api/shadow/recurring-invoices` | Recurring invoices shadow, last 31 checked days: `{ from, to, days: [{ day, verdict, invoices }], cleanDays, matchedInvoices, mismatchDays, readyToSwitch, headline, upcoming, recentMismatches }`. Day verdicts: `match`, `quiet` (nothing due, nothing made), `mismatch` (an item was `dsos-missed`, `amount-differs` or `unexpected`), `flow-missed`. Ready = 31/31 clean and ≥1 invoice matched. |
-| `POST /hooks/:flowId?secret=…` | Webhook trigger. 404 on wrong secret. |
+| `GET /api/shadow/enquiries` | Enquiry responder shadow (drafts, nothing sent): `{ total, drafted, screenedOut, duplicates, headline, recent: [{ at, verdict, reason, topic, bookingLink, enquiry, email: { to, from, subject, text } }] }`, newest 50. Verdicts: `drafted`, `screened-out` (no/invalid email, spam, empty), `duplicate` (same email + message within 30 min). |
+| `POST /hooks/:flowId?secret=…` | Webhook trigger. 404 on wrong secret, or if the flow has no secret set. A flow's secret can be read from the HUB at call time (enquiry form: `C:\Flow\secrets\enquiry-webhook-secret.txt`). JSON or form-encoded body. |
 
 ## Step type `dsos` (for flow authors)
 ```js

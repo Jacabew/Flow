@@ -13,6 +13,7 @@ import { makeAlerter } from './alerts.js';
 import { INBOX_HTML } from './inbox.js';
 import { backfeedReport } from './backfeed.js';
 import { recurringReport } from './recurring.js';
+import { enquiryReport } from './enquiry.js';
 
 export const VERSION = '0.1.0';
 
@@ -81,7 +82,9 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = 
       // Webhook trigger: POST /hooks/<flowId>?secret=<flow.webhookSecret>
       if (parts[0] === 'hooks' && req.method === 'POST') {
         const flow = engine.flows.get(parts[1]);
-        if (!flow?.webhookSecret || url.searchParams.get('secret') !== flow.webhookSecret) return send(404, { error: 'not found' });
+        // webhookSecret may be a function so it can come from the HUB's secrets folder at call time.
+        const secret = typeof flow?.webhookSecret === 'function' ? flow.webhookSecret() : flow?.webhookSecret;
+        if (!secret || !keyMatches(url.searchParams.get('secret') ?? '', secret)) return send(404, { error: 'not found' });
         return send(202, await engine.trigger(flow.id, await readJson(req), 'webhook'));
       }
 
@@ -119,6 +122,7 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = 
       // Connector status (never includes tokens) and the shadow log of writes not sent.
       if (url.pathname === '/api/connectors') return send(200, { dsos: dsos.config() });
       if (url.pathname === '/api/shadow/xero-backfeed') return send(200, backfeedReport(store, engine.now()));
+      if (url.pathname === '/api/shadow/enquiries') return send(200, enquiryReport(store));
       if (url.pathname === '/api/shadow/recurring-invoices') return send(200, recurringReport(store, engine.now()));
       if (url.pathname === '/api/shadow') {
         const flow = url.searchParams.get('flow');
