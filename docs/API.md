@@ -45,6 +45,7 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 |---|---|
 | `GET /health` | `{ ok, version, startedAt, flows }`. No key. |
 | `GET /inbox` | Phone approval page. No key (page holds no data). |
+| `GET /api/agents` | Agent registry: `[{ id, name, job, flows: [{ id, enabled }], auto: [action], needsApproval: [action], runs24h, failed24h }]`. Read-only; agents are edited in `agents/*.js`. |
 | `GET /api/flows` | Same as `summary.flows`. |
 | `POST /api/flows/:id/run` | Run a flow now; body = input. |
 | `POST /api/flows/:id/pause` / `resume` | Switch a flow off/on. 404 if unknown. |
@@ -69,3 +70,18 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 - `path` must start with `/api/v1/`, plain characters only (no `%`, `?`, `..`); put parameters in `query`.
 - Reads retry twice, writes never retry (set `retries` to override). Timeout 30 s (`timeoutMs`).
 - HUB config: `FLOW_DSOS_URL` (default `http://127.0.0.1:3000`), token in `FLOW_DSOS_TOKEN` or `%FLOW_SECRETS_DIR%\dsos-token.txt`.
+
+## Agents (for flow authors)
+```js
+// agents/helper.js
+export default { id: 'helper', name: 'Helper', job: 'What it is for.', actions: {
+  'dsos:GET /api/v1/jobs*': 'auto',       // does it without asking
+  'dsos:POST /api/v1/leads': 'approval',  // pauses for a yes in /inbox, every time, when the write would really go out
+} };
+// flows/x.js
+export default { id: 'x', agent: 'helper', steps: [ ... ] };
+```
+- Action = `connector:METHOD target`: `dsos` target is the path, `http` target is the host. `*` matches anything. Unlisted = denied.
+- Denied: flow fails to load (fixed target) or the run fails with an alert before sending (dynamic target).
+- Shadow DSOS writes are permission-checked but never paused. Flows without `agent` are not restricted.
+

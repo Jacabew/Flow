@@ -18,6 +18,7 @@ const { server, engine, ready } = createApp({
   dataDir: process.env.FLOW_DATA_DIR ?? path.join(root, 'data'),
   apiKey: process.env.FLOW_API_KEY,
   flowsDir: path.join(root, 'flows'),
+  agentsDir: path.join(root, 'agents'),
 });
 
 await ready;

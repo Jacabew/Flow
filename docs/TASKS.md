@@ -37,7 +37,7 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] Enquiry responder: shadow run (drafts, doesn't send)
 
 ## Phase 4 — agent registry + guardrails
-- [ ] Agent registry: id, job, allowed connectors/actions, auto vs needs-approval actions
+- [x] Agent registry: id, job, allowed connectors/actions, auto vs needs-approval actions
 - [ ] Guardrails: daily send/spend limits per agent, global pause switch
 - [ ] First agent live: enquiry responder (after Jake's yes in CHECKIN)
 

@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { Store } from '../src/store.js';
 import { Engine } from '../src/engine.js';
 import { createApp } from '../src/app.js';
+import enquiryAgent from '../agents/enquiry-responder.js';
 import { makeDsosClient } from '../src/connectors/dsos.js';
 import {
   normaliseEnquiry, screenEnquiry, pickTopic, draftReply, leadPayload, enquiryReport, enquirySecret,
@@ -96,6 +97,7 @@ test('flow drafts, shadows the lead and the email, and sends nothing (even with 
   const dsos = makeDsosClient({ env: { FLOW_DSOS_TOKEN: 't', FLOW_DSOS_WRITES: 'live' }, fetchImpl });
   let clock = new Date('2026-11-02T09:00:00+10:00');
   const engine = new Engine({ store, now: () => clock, connectors: { dsos } });
+  engine.registerAgent(enquiryAgent);
   engine.register(flow);
 
   await withEnv({ FLOW_BOOKING_URL: 'https://book.example/intro', FLOW_ENQUIRY_FROM: 'jake@example.com' }, async () => {
@@ -145,7 +147,7 @@ test('webhook + report over HTTP: 404 with no secret set, drafts with the right 
   fs.writeFileSync(path.join(flowsDir, 'enq.js'), `export { default } from ${JSON.stringify(flowUrl)};`);
   const secretsDir = tmp('dsflow-enq-secrets-');
   await withEnv({ FLOW_SECRETS_DIR: secretsDir, FLOW_ENQUIRY_SECRET: undefined, FLOW_BOOKING_URL: undefined }, async () => {
-    const app = createApp({ dataDir: tmp('dsflow-enq-api-'), apiKey: 'k', flowsDir, env: {} });
+    const app = createApp({ dataDir: tmp('dsflow-enq-api-'), apiKey: 'k', flowsDir, agentsDir: path.resolve('agents'), env: {} });
     await app.ready;
     await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
     const base = `http://127.0.0.1:${app.server.address().port}`;

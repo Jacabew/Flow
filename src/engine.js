@@ -1,8 +1,9 @@
 // DS Flow engine: runs flows step by step, logs every run, retries failures,
 // pauses for approvals, and raises alerts. Deterministic: no AI calls in here.
-import { stepTypes } from './steps/index.js';
+import { stepTypes, resolve } from './steps/index.js';
 import { normalizeSchedule } from './scheduler.js';
-import { isDsosWrite } from './connectors/dsos.js';
+import { isDsosWrite, dsosConfig } from './connectors/dsos.js';
+import { validateAgent, actionOf, modeFor, isShadowStep } from './agents.js';
 
 // Every step attempt is time-limited so a hung step can't block its run forever.
 // Override per step with step.timeoutMs. http keeps its own abort (default 30s) with a little headroom here.
@@ -36,13 +37,32 @@ export class Engine {
     this.alert = alert;
     this.now = now;
     this.flows = new Map();
+    this.agents = new Map();
     this.startedAt = now().toISOString();
+  }
+
+  // Agents first, then the flows that belong to them (see src/agents.js).
+  registerAgent(agent) {
+    const a = validateAgent(agent);
+    if (this.agents.has(a.id)) throw new Error(`Agent ${a.id} is registered twice`);
+    this.agents.set(a.id, a);
   }
 
   register(flow) {
     if (!flow?.id || !Array.isArray(flow.steps)) throw new Error('A flow needs an id and a steps array');
     for (const s of flow.steps) {
       if (!stepTypes[s.type]) throw new Error(`Flow ${flow.id}: unknown step type "${s.type}"`);
+    }
+    if (flow.agent !== undefined) {
+      const agent = this.agents.get(flow.agent);
+      if (!agent) throw new Error(`Flow ${flow.id}: unknown agent "${flow.agent}"`);
+      // Catch a missing permission at load time where the target is fixed; dynamic ones are checked per run.
+      for (const s of flow.steps) {
+        const action = actionOf(s, null);
+        if (action && modeFor(agent, action) === 'denied') {
+          throw new Error(`Flow ${flow.id}: agent ${agent.id} is not allowed "${action}"`);
+        }
+      }
     }
     if (flow.schedule) {
       try { normalizeSchedule(flow.schedule); } catch (err) { throw new Error(`Flow ${flow.id}: ${err.message}`); }
@@ -95,6 +115,29 @@ export class Engine {
       const step = flow.steps[i];
       const name = step.name ?? `${i + 1}-${step.type}`;
       const attempts = 1 + (step.retries ?? defaultRetries(step));
+
+      // Agent guardrail: is this agent allowed to do this, and does it need Jake's yes first?
+      if (flow.agent) {
+        const agent = this.agents.get(flow.agent);
+        let action;
+        try { action = actionOf(step, ctx); } catch (err) { return this.#fail(flow, run, `${name}: ${err.message}`); }
+        const mode = action ? modeFor(agent, action) : 'auto';
+        if (mode === 'denied') return this.#fail(flow, run, `${name}: agent ${agent.id} is not allowed "${action}"`);
+        if (mode === 'approval' && !run.gates?.[i] && !isShadowStep(step, this.#dsosWritesLive())) {
+          let detail;
+          try { detail = { agent: agent.id, action, body: resolve(step.body, ctx) ?? null }; } catch { detail = { agent: agent.id, action }; }
+          const approval = this.store.insert('approvals', {
+            runId: run.id, flowId: flow.id, stepName: name, gateStep: i,
+            title: `${agent.name}: ${action}?`, detail,
+            status: 'pending', createdAt: this.now().toISOString(), decidedAt: null,
+          });
+          run.stepIndex = i;
+          run.status = 'waiting_approval';
+          this.#log(run, `agent ${agent.id} needs approval for ${action}`);
+          this.store.update('runs', run.id, run);
+          return { runId: run.id, status: run.status, approvalId: approval.id };
+        }
+      }
 
       let output;
       let lastErr;
@@ -171,7 +214,12 @@ export class Engine {
 
     const run = this.store.get('runs', approval.runId);
     const flow = this.flows.get(approval.flowId);
-    run.steps[approval.stepName] = { approved, by };
+    if (approval.gateStep != null) {
+      // Agent action gate: approving lets that one step run once, in this run only.
+      if (approved) run.gates = { ...(run.gates ?? {}), [approval.gateStep]: true };
+    } else {
+      run.steps[approval.stepName] = { approved, by };
+    }
 
     if (!approved) {
       run.status = 'rejected';
@@ -183,6 +231,11 @@ export class Engine {
     this.#log(run, `approved by ${by}`);
     run.status = 'running';
     return this.#continue(flow, run);
+  }
+
+  #dsosWritesLive() {
+    const c = this.connectors.dsos?.config?.();
+    return c ? Boolean(c.writesLive) : dsosConfig().writesLive;
   }
 
   async #fail(flow, run, message) {

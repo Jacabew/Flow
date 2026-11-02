@@ -15,6 +15,7 @@ export const LEADS_PATH = '/api/v1/leads';
 
 export default {
   id: 'enquiry-responder-shadow',
+  agent: 'enquiry-responder',
   description: 'Shadow: drafts a reply to each website enquiry and logs the DSOS lead it would create. Sends nothing.',
   webhookSecret: () => enquirySecret(),
   steps: [

@@ -5,6 +5,7 @@ DarkSpace's own lightweight automation and agent manager. Think n8n, minus the c
 - **Flows** live in `flows/*.js`: a trigger (schedule or webhook) and a list of steps.
 - **Steps:** `http`, `dsos`, `code`, `if`, `wait`, `approval`, `log`. Connectors are built as needed.
 - **DSOS connector** (`dsos` step): reads go through; writes are shadow (logged at `/api/shadow`, not sent) unless the step is `live: true` and the HUB has `FLOW_DSOS_WRITES=live`.
+- **Agents** live in `agents/*.js`: a job plus the actions it may take (`auto` or `approval`; anything else denied). A flow joins an agent with `agent: '<id>'`. See `GET /api/agents`.
 - **Every run is logged**, failures retry and alert, approvals pause a run until Jake decides.
 - **Self-deploying:** push to `main` → HUB tests, deploys, health-checks and rolls back on its own.
 
@@ -19,6 +20,7 @@ FLOW_API_KEY=dev npm start   # http://127.0.0.1:5680/health
 |---|---|---|
 | GET | /health | Liveness (no key) |
 | GET | /api/summary | Mission Control tile: ok, runs, failed, pending approvals |
+| GET | /api/agents | Agent registry: jobs, flows, auto vs needs-approval actions |
 | GET | /api/flows | Flows and on/off state |
 | POST | /api/flows/:id/run | Run a flow now |
 | POST | /api/flows/:id/pause, /resume | Switch a flow off/on |

@@ -14,6 +14,7 @@ import { INBOX_HTML } from './inbox.js';
 import { backfeedReport } from './backfeed.js';
 import { recurringReport } from './recurring.js';
 import { enquiryReport } from './enquiry.js';
+import { loadAgents, agentsReport } from './agents.js';
 
 export const VERSION = '0.1.0';
 
@@ -47,7 +48,7 @@ function clientId(req) {
   return remote;
 }
 
-export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = () => Date.now() }) {
+export function createApp({ dataDir, apiKey, flowsDir, agentsDir, env = process.env, now = () => Date.now() }) {
   const authFails = new Map(); // clientId -> [timestamps of failed attempts]
   const store = new Store(dataDir);
   const dsos = makeDsosClient({ env });
@@ -100,6 +101,7 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = 
       }
 
       if (url.pathname === '/api/summary') return send(200, engine.summary());
+      if (url.pathname === '/api/agents') return send(200, agentsReport(engine));
       if (url.pathname === '/api/flows') return send(200, engine.summary().flows);
       if (parts[1] === 'flows' && parts[3] === 'run' && req.method === 'POST') {
         return send(200, await engine.trigger(parts[2], await readJson(req), 'manual'));
@@ -136,7 +138,9 @@ export function createApp({ dataDir, apiKey, flowsDir, env = process.env, now = 
     }
   });
 
-  const ready = loadFlows(engine, flowsDir).then(() => engine.recoverInterrupted());
+  // Agents load before flows: a flow naming an unknown agent fails to load.
+  const ready = (agentsDir ? loadAgents(engine, agentsDir) : Promise.resolve())
+    .then(() => loadFlows(engine, flowsDir)).then(() => engine.recoverInterrupted());
   return { server, engine, store, ready };
 }
 
