@@ -45,7 +45,9 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 |---|---|
 | `GET /health` | `{ ok, version, startedAt, flows }`. No key. |
 | `GET /inbox` | Phone approval page. No key (page holds no data). |
-| `GET /api/agents` | Agent registry: `[{ id, name, job, flows: [{ id, enabled }], auto: [action], needsApproval: [action], runs24h, failed24h }]`. Read-only; agents are edited in `agents/*.js`. |
+| `GET /api/agents` | Agent registry: `[{ id, name, job, flows: [{ id, enabled }], auto: [action], needsApproval: [action], runs24h, failed24h, paused, limits: { sendsPerDay, spendPerDayAud }, today: { day, sends, spendAud } }]`. Read-only; agents are edited in `agents/*.js`. |
+| `POST /api/agents/pause-all` / `resume-all` | Global pause switch for every agent: `{ ok, allAgentsPaused }`. System flows (heartbeat, watchdog…) keep running. Also a button at the bottom of `/inbox`. |
+| `POST /api/agents/:id/pause` / `resume` | Pause one agent: `{ ok, paused }`. 404 if unknown. `paused` stays true while pause-all is on. |
 | `GET /api/flows` | Same as `summary.flows`. |
 | `POST /api/flows/:id/run` | Run a flow now; body = input. |
 | `POST /api/flows/:id/pause` / `resume` | Switch a flow off/on. 404 if unknown. |
@@ -84,4 +86,7 @@ export default { id: 'x', agent: 'helper', steps: [ ... ] };
 - Action = `connector:METHOD target`: `dsos` target is the path, `http` target is the host. `*` matches anything. Unlisted = denied.
 - Denied: flow fails to load (fixed target) or the run fails with an alert before sending (dynamic target).
 - Shadow DSOS writes are permission-checked but never paused. Flows without `agent` are not restricted.
+- Limits (optional, per Brisbane day): `limits: { sendsPerDay: 20, spendPerDayAud: 0 }` (defaults shown). A send = any real action that isn't GET/HEAD. Spend = a step's `spendAud` (number or `(ctx) => number`). Over a limit the run fails with an alert before the step runs, and before any approval is asked for. Shadow steps never count. Ledger: `agent_usage` collection.
+- Paused agent: new runs return `{ skipped: true, reason: 'agent is paused' }`; a running one holds before its next step (status `paused`) and carries on when resumed.
+- `/api/summary` adds `allAgentsPaused` and `pausedAgents`; a paused agent makes the tile amber (`Automations: all agents paused` / `N agent(s) paused`) unless something failed or waits for approval.
 

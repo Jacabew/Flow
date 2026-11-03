@@ -65,18 +65,31 @@ function login(msg = '') {
 async function load() {
   if (!key) return login();
   out.hidden = false;
-  let rows;
-  try { rows = await api('/api/approvals'); } catch (e) { if (key) main.innerHTML = '<p class="msg">Could not load: ' + esc(e.message) + '</p>'; return; }
-  if (!rows.length) { main.innerHTML = '<p class="empty">Nothing waiting. ✓</p>'; return; }
+  let rows, sum;
+  try { [rows, sum] = await Promise.all([api('/api/approvals'), api('/api/summary')]); } catch (e) { if (key) main.innerHTML = '<p class="msg">Could not load: ' + esc(e.message) + '</p>'; return; }
+  // Kill switch: pause or resume every agent. System flows (heartbeat etc.) keep running.
+  const paused = Boolean(sum.allAgentsPaused);
+  const sw = '<div class="card"><div class="title">' + (paused ? 'All agents paused' : 'Agents running') + '</div>' +
+    '<div class="meta">' + (paused ? 'Nothing an agent does goes out until you resume.' : 'Pause stops every agent at once.') + '</div>' +
+    '<div class="row"><button class="' + (paused ? 'ok' : 'no') + '" data-sw="' + (paused ? 'resume-all' : 'pause-all') + '">' +
+    (paused ? 'Resume all agents' : 'Pause all agents') + '</button></div></div>';
+  if (!rows.length) { main.innerHTML = '<p class="empty">Nothing waiting. ✓</p>' + sw; return; }
   main.innerHTML = rows.map((a) =>
     '<div class="card" data-id="' + esc(a.id) + '"><div class="title">' + esc(a.title || 'Approval needed') + '</div>' +
     '<div class="meta">' + esc(a.flowId) + ' · ' + esc(when(a.createdAt)) + '</div>' +
     (a.detail ? '<div class="detail">' + esc(typeof a.detail === 'string' ? a.detail : JSON.stringify(a.detail, null, 2)) + '</div>' : '') +
     '<div class="row"><button class="ok" data-d="approve">Approve</button><button class="no" data-d="reject">Reject</button></div></div>'
-  ).join('');
+  ).join('') + sw;
 }
 
 main.onclick = async (e) => {
+  const swc = e.target.dataset?.sw;
+  if (swc) {
+    if (swc === 'pause-all' && !confirm('Pause all agents?')) return;
+    e.target.disabled = true;
+    try { await api('/api/agents/' + swc, 'POST'); } catch (err) { if (key) alert('Failed: ' + err.message); }
+    return load();
+  }
   const d = e.target.dataset?.d;
   if (!d) return;
   const card = e.target.closest('.card');

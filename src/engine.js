@@ -3,7 +3,7 @@
 import { stepTypes, resolve } from './steps/index.js';
 import { normalizeSchedule } from './scheduler.js';
 import { isDsosWrite, dsosConfig } from './connectors/dsos.js';
-import { validateAgent, actionOf, modeFor, isShadowStep } from './agents.js';
+import { validateAgent, actionOf, modeFor, isShadowStep, isSendAction, usageToday, overLimit, brisbaneDay } from './agents.js';
 
 // Every step attempt is time-limited so a hung step can't block its run forever.
 // Override per step with step.timeoutMs. http keeps its own abort (default 30s) with a little headroom here.
@@ -30,6 +30,9 @@ export function defaultRetries(step) {
 // Safety cap only. Normal housekeeping is the retention flow (archives runs older than 30 days).
 const MAX_RUNS_KEPT = 20000;
 
+// agent_state key for the global pause switch.
+export const ALL_AGENTS = '*';
+
 export class Engine {
   constructor({ store, alert = async () => {}, now = () => new Date(), connectors = {} }) {
     this.store = store;
@@ -46,6 +49,29 @@ export class Engine {
     const a = validateAgent(agent);
     if (this.agents.has(a.id)) throw new Error(`Agent ${a.id} is registered twice`);
     this.agents.set(a.id, a);
+  }
+
+  // Pause switch. id = an agent id, or ALL_AGENTS for every agent. Latest record wins.
+  isAgentPaused(id) {
+    const last = (key) => this.store.list('agent_state', (r) => r.agentId === key).at(-1)?.paused ?? false;
+    return last(ALL_AGENTS) || (id !== ALL_AGENTS && last(id));
+  }
+
+  // Returns false for an unknown agent. Resuming continues runs held by the pause.
+  async setAgentPaused(id, paused, by = 'jake') {
+    if (id !== ALL_AGENTS && !this.agents.has(id)) return false;
+    this.store.insert('agent_state', { agentId: id, paused, by, at: this.now().toISOString() });
+    if (paused) return true;
+    const held = this.store.list('runs', (r) => r.status === 'paused');
+    for (const run of held) {
+      const flow = this.flows.get(run.flowId);
+      if (!flow || this.isAgentPaused(flow.agent)) continue;
+      run.status = 'running';
+      this.#log(run, `resumed by ${by}`);
+      this.store.update('runs', run.id, run);
+      await this.#continue(flow, run);
+    }
+    return true;
   }
 
   register(flow) {
@@ -87,6 +113,7 @@ export class Engine {
     const flow = this.flows.get(flowId);
     if (!flow) throw new Error(`Unknown flow "${flowId}"`);
     if (!this.isEnabled(flowId)) return { skipped: true, reason: 'flow is paused' };
+    if (flow.agent && this.isAgentPaused(flow.agent)) return { skipped: true, reason: 'agent is paused' };
 
     const run = this.store.insert('runs', {
       flowId,
@@ -123,7 +150,29 @@ export class Engine {
         try { action = actionOf(step, ctx); } catch (err) { return this.#fail(flow, run, `${name}: ${err.message}`); }
         const mode = action ? modeFor(agent, action) : 'auto';
         if (mode === 'denied') return this.#fail(flow, run, `${name}: agent ${agent.id} is not allowed "${action}"`);
-        if (mode === 'approval' && !run.gates?.[i] && !isShadowStep(step, this.#dsosWritesLive())) {
+
+        // Pause switch: hold before the next step; resume carries on from here.
+        if (this.isAgentPaused(agent.id)) {
+          run.stepIndex = i;
+          run.status = 'paused';
+          this.#log(run, `held before ${name}: agent ${agent.id} is paused`);
+          this.store.update('runs', run.id, run);
+          return { runId: run.id, status: run.status };
+        }
+
+        // Daily send/spend limits. Checked before asking for approval and again after it.
+        const shadow = isShadowStep(step, this.#dsosWritesLive());
+        let usage = null;
+        if (!shadow) {
+          let spendAud;
+          try { spendAud = Number(resolve(step.spendAud, ctx) ?? 0); } catch (err) { return this.#fail(flow, run, `${name}: ${err.message}`); }
+          if (!Number.isFinite(spendAud) || spendAud < 0) return this.#fail(flow, run, `${name}: spendAud must be a number ≥ 0`);
+          usage = { send: action ? isSendAction(action) : false, spendAud };
+          const reason = overLimit(agent, usageToday(this.store, agent.id, this.now()), usage);
+          if (reason) return this.#fail(flow, run, `${name}: agent ${agent.id} ${reason}`);
+        }
+
+        if (mode === 'approval' && !run.gates?.[i] && !shadow) {
           let detail;
           try { detail = { agent: agent.id, action, body: resolve(step.body, ctx) ?? null }; } catch { detail = { agent: agent.id, action }; }
           const approval = this.store.insert('approvals', {
@@ -136,6 +185,16 @@ export class Engine {
           this.#log(run, `agent ${agent.id} needs approval for ${action}`);
           this.store.update('runs', run.id, run);
           return { runId: run.id, status: run.status, approvalId: approval.id };
+        }
+
+        // Counted when attempted, not when it succeeds: a failed send may still have gone out.
+        if (usage && (usage.send || usage.spendAud > 0)) {
+          const now = this.now();
+          this.store.insert('agent_usage', {
+            agentId: agent.id, flowId: flow.id, runId: run.id, step: name, action,
+            send: usage.send, spendAud: usage.spendAud, day: brisbaneDay(now), at: now.toISOString(),
+          });
+          this.store.trim('agent_usage', 20000); // safety cap; only today's rows matter for limits
         }
       }
 
@@ -263,12 +322,18 @@ export class Engine {
     const recent = this.store.list('runs', (r) => Date.parse(r.startedAt) >= since);
     const failed = recent.filter((r) => r.status === 'failed');
     const pending = this.store.list('approvals', (a) => a.status === 'pending');
-    const status = failed.length ? 'red' : pending.length ? 'amber' : 'green';
+    const allAgentsPaused = this.isAgentPaused(ALL_AGENTS);
+    const pausedAgents = [...this.agents.keys()].filter((id) => this.isAgentPaused(id)).sort();
+    const status = failed.length ? 'red' : pending.length || pausedAgents.length ? 'amber' : 'green';
     const headline = failed.length
       ? `Automations: ${failed.length} failed`
       : pending.length
         ? `Automations: ${pending.length} waiting for approval`
-        : 'Automations: all green';
+        : allAgentsPaused
+          ? 'Automations: all agents paused'
+          : pausedAgents.length
+            ? `Automations: ${pausedAgents.length} agent${pausedAgents.length === 1 ? '' : 's'} paused`
+            : 'Automations: all green';
     return {
       schema: 1,
       generatedAt: now.toISOString(),
@@ -282,6 +347,8 @@ export class Engine {
       lastFailureAt: failed.length ? failed.map((r) => r.startedAt).sort().at(-1) : null,
       pendingApprovals: pending.length,
       flows: [...this.flows.keys()].map((id) => ({ id, enabled: this.isEnabled(id) })),
+      allAgentsPaused,
+      pausedAgents,
     };
   }
 }

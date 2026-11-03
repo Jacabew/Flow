@@ -25,6 +25,8 @@ test('summary schema 1: exact frozen key set, green when nothing wrong', async (
   assert.deepEqual(Object.keys(s), [
     'schema', 'generatedAt', 'sinceHours', 'ok', 'status', 'headline', 'runs', 'failed',
     'failedFlows', 'lastFailureAt', 'pendingApprovals', 'flows',
+    // Added later (schema 1 allows new fields, never renames/removals):
+    'allAgentsPaused', 'pausedAgents',
   ]);
   assert.equal(s.schema, 1);
   assert.equal(s.generatedAt, NOW.toISOString());

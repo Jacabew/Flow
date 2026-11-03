@@ -8,7 +8,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Store } from './store.js';
 import { makeDsosClient } from './connectors/dsos.js';
-import { Engine } from './engine.js';
+import { Engine, ALL_AGENTS } from './engine.js';
 import { makeAlerter } from './alerts.js';
 import { INBOX_HTML } from './inbox.js';
 import { backfeedReport } from './backfeed.js';
@@ -102,6 +102,15 @@ export function createApp({ dataDir, apiKey, flowsDir, agentsDir, env = process.
 
       if (url.pathname === '/api/summary') return send(200, engine.summary());
       if (url.pathname === '/api/agents') return send(200, agentsReport(engine));
+      // Pause switch: every agent at once (phone kill switch) or one agent.
+      if ((url.pathname === '/api/agents/pause-all' || url.pathname === '/api/agents/resume-all') && req.method === 'POST') {
+        await engine.setAgentPaused(ALL_AGENTS, url.pathname.endsWith('pause-all'));
+        return send(200, { ok: true, allAgentsPaused: engine.isAgentPaused(ALL_AGENTS) });
+      }
+      if (parts[1] === 'agents' && parts.length === 4 && (parts[3] === 'pause' || parts[3] === 'resume') && req.method === 'POST') {
+        const ok = await engine.setAgentPaused(parts[2], parts[3] === 'pause');
+        return ok ? send(200, { ok: true, paused: engine.isAgentPaused(parts[2]) }) : send(404, { error: 'agent not found' });
+      }
       if (url.pathname === '/api/flows') return send(200, engine.summary().flows);
       if (parts[1] === 'flows' && parts[3] === 'run' && req.method === 'POST') {
         return send(200, await engine.trigger(parts[2], await readJson(req), 'manual'));
