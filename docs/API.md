@@ -3,6 +3,8 @@ Base: `http://127.0.0.1:5680` on the HUB. JSON in, JSON out.
 Auth: header `x-api-key: <FLOW_API_KEY>` on every `/api/*` call. Exceptions: `/health`, `/inbox` (static page), `/hooks/*` (per-flow secret).
 Wrong key → `401`. 10 wrong keys from one client in 15 min → `429` for that client until the window clears.
 
+**Client library:** `client/index.js` (`import { createFlowClient } from 'ds-flow/client'`) wraps every endpoint below. Adding a flow, step types and the client: [FLOWS.md](FLOWS.md).
+
 ## GET /api/summary — Mission Control tile (schema 1, frozen)
 Last 24 h. **Frozen:** fields may be added later, never renamed, removed or re-typed. A breaking change would ship as `schema: 2`.
 
@@ -49,7 +51,7 @@ Tile rule of thumb: colour from `status`, text from `headline`, tap → `/inbox`
 | `POST /api/agents/pause-all` / `resume-all` | Global pause switch for every agent: `{ ok, allAgentsPaused }`. System flows (heartbeat, watchdog…) keep running. Also a button at the bottom of `/inbox`. |
 | `POST /api/agents/:id/pause` / `resume` | Pause one agent: `{ ok, paused }`. 404 if unknown. `paused` stays true while pause-all is on. |
 | `GET /api/flows` | Same as `summary.flows`. |
-| `POST /api/flows/:id/run` | Run a flow now; body = input. |
+| `POST /api/flows/:id/run` | Run a flow now; body = input. 404 if unknown. |
 | `POST /api/flows/:id/pause` / `resume` | Switch a flow off/on. 404 if unknown. |
 | `GET /api/runs?status=failed` | Newest 100 runs, optional status filter. |
 | `GET /api/approvals` | Pending approvals. |

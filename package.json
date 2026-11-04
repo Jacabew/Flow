@@ -12,5 +12,9 @@
     "start": "node src/server.js",
     "test": "node --test \"test/**/*.test.js\""
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./src/server.js",
+    "./client": "./client/index.js"
+  }
 }

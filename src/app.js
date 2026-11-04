@@ -113,6 +113,7 @@ export function createApp({ dataDir, apiKey, flowsDir, agentsDir, env = process.
       }
       if (url.pathname === '/api/flows') return send(200, engine.summary().flows);
       if (parts[1] === 'flows' && parts[3] === 'run' && req.method === 'POST') {
+        if (!engine.flows.has(parts[2])) return send(404, { error: 'flow not found' });
         return send(200, await engine.trigger(parts[2], await readJson(req), 'manual'));
       }
       if (parts[1] === 'flows' && (parts[3] === 'pause' || parts[3] === 'resume') && req.method === 'POST') {

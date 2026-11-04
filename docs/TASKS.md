@@ -42,4 +42,4 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [ ] First agent live: enquiry responder (after Jake's yes in CHECKIN)
 
 ## Phase 5 — reusable for other projects
-- [ ] Small client library + API docs so other builds (marketing, Creative Buddy) can register flows
+- [x] Small client library + API docs so other builds (marketing, Creative Buddy) can register flows
