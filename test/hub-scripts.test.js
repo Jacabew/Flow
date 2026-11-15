@@ -18,3 +18,11 @@ test('installer records tool folders and the SYSTEM deploy task reads them', () 
   // PATH must be extended before the first git/node/nssm call
   assert.ok(deploy.indexOf('tools-path.txt') < deploy.indexOf('& git'));
 });
+
+test('deploy script never shadows git with a same-named function (infinite recursion)', () => {
+  const deploy = read('flow-deploy.ps1');
+  const fns = [...deploy.matchAll(/^function\s+([\w-]+)/gim)].map((m) => m[1].toLowerCase());
+  for (const cmd of ['git', 'node', 'nssm']) assert.ok(!fns.includes(cmd), `function ${cmd} would shadow ${cmd}.exe`);
+  assert.match(deploy, /& git\.exe /);
+  assert.ok(!/^\s*Git\s/m.test(deploy), 'stray call to old Git function');
+});

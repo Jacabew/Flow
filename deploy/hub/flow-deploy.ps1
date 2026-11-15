@@ -71,10 +71,12 @@ function Healthy {
 $env:GIT_TERMINAL_PROMPT = "0"
 $env:GCM_INTERACTIVE = "never"
 
-function Git {
+# Named Invoke-Git, NOT Git: PowerShell names are case-insensitive, so a function called
+# "Git" that runs "& git" calls itself forever (call depth overflow). Always git.exe here.
+function Invoke-Git {
   # git writes progress to stderr; don't let PowerShell treat that as an error.
   $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-  $out = & git -c credential.helper= -C $App @args 2>$null
+  $out = & git.exe -c credential.helper= -C $App @args 2>$null
   $code = $LASTEXITCODE; $ErrorActionPreference = $old
   if ($code -ne 0) { throw "git $($args -join ' ') failed (exit $code)" }
   return $out
@@ -90,9 +92,9 @@ if ((Test-Path $Lock) -and ((Get-Item $Lock).LastWriteTime -gt (Get-Date).AddMin
 Set-Content -Path $Lock -Value $PID
 
 try {
-  Git fetch --quiet origin main | Out-Null
-  $current = (Git rev-parse HEAD).Trim()
-  $target  = (Git rev-parse origin/main).Trim()
+  Invoke-Git fetch --quiet origin main | Out-Null
+  $current = (Invoke-Git rev-parse HEAD).Trim()
+  $target  = (Invoke-Git rev-parse origin/main).Trim()
   $bad     = if (Test-Path $BadFile) { Get-Content $BadFile } else { @() }
 
   if ($current -eq $target -or $bad -contains $target) {
@@ -108,7 +110,7 @@ try {
   }
 
   Log "New commit $target (was $current). Testing."
-  Git reset --hard $target | Out-Null
+  Invoke-Git reset --hard $target | Out-Null
 
   Push-Location $App
   $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
@@ -118,7 +120,7 @@ try {
   Pop-Location
 
   if (-not $testsPassed) {
-    Git reset --hard $current | Out-Null
+    Invoke-Git reset --hard $current | Out-Null
     Add-Content -Path $BadFile -Value $target
     Alert "Rejected $($target.Substring(0,7)): tests failed on the HUB. Still running $($current.Substring(0,7))."
     Status "rejected-tests" $current
@@ -132,7 +134,7 @@ try {
     Status "deployed" $target
   } else {
     $good = if (Test-Path $GoodFile) { (Get-Content $GoodFile -Raw).Trim() } else { $current }
-    Git reset --hard $good | Out-Null
+    Invoke-Git reset --hard $good | Out-Null
     & nssm restart $Service | Out-Null
     Add-Content -Path $BadFile -Value $target
     $state = if (Healthy) { "rolled-back" } else { "rolled-back-but-down" }
