@@ -21,3 +21,4 @@ Facts only. What exists now that didn't before.
 - 2026-11-16: Fixed HUB auto-deploy: `flow-deploy.ps1` had a function `Git` that called `git`; PowerShell names are case-insensitive so it called itself until call depth overflow (every 5-min run failed; manual run hung). Now `Invoke-Git` calling `git.exe`, git can't wait on a login prompt, test guards against the shadowing. 109 passing tests.
 - 2026-11-16: First HUB auto-deploy confirmed: SYSTEM task tested and deployed 143d16c at 08:57 Brisbane in 3 s, healthy. Deploy pipeline is live; pushes to main now reach the HUB within 5 minutes.
 - 2026-11-16: The 5 DSOS requests, approved by Jake, written up as one DSOS build prompt in the DSOS Build project (`claude/CLAUDE_CODE_PROMPT_DS_FLOW_HOOKUP.md`). No DSOS code or repo touched.
+- 2026-11-16: Phone alerts on: ntfy topic set on the HUB (`C:\Flow\secrets\ntfy-topic.txt`), Jake's test alert received.

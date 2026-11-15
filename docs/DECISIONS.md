@@ -71,3 +71,6 @@ Jake can veto any of these in the Wednesday session.
 
 ## 2026-11-15 — SYSTEM deploy task tool paths
 nssm on the HUB is a per-user WinGet install, invisible to the SYSTEM account the deploy task runs as. Chose to record tool folders at install time (plus a fallback search of common folders) rather than ask Jake to move nssm into the machine PATH: no extra step for Jake, and it survives the old installer copy being used.
+
+## 2026-11-16 — ntfy topic kept short for now
+Jake chose a short, guessable ntfy topic to keep it simple, knowing others could read or send to it. Alerts carry only flow names and error text, never tokens or money. Revisit if a stray alert ever appears (one-line change in C:\Flow\secrets\ntfy-topic.txt).
