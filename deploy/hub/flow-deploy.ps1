@@ -66,10 +66,15 @@ function Healthy {
   return $false
 }
 
+# Never let git wait for a login prompt: SYSTEM has no desktop, so a prompt hangs the task
+# forever. Auth for a private repo comes from http.extraHeader set by install.ps1.
+$env:GIT_TERMINAL_PROMPT = "0"
+$env:GCM_INTERACTIVE = "never"
+
 function Git {
   # git writes progress to stderr; don't let PowerShell treat that as an error.
   $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-  $out = & git -C $App @args 2>$null
+  $out = & git -c credential.helper= -C $App @args 2>$null
   $code = $LASTEXITCODE; $ErrorActionPreference = $old
   if ($code -ne 0) { throw "git $($args -join ' ') failed (exit $code)" }
   return $out
