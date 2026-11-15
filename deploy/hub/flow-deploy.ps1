@@ -36,7 +36,7 @@ $toolDirs = @()
 $ToolsFile = Join-Path $Root "tools-path.txt"
 if (Test-Path $ToolsFile) { $toolDirs += Get-Content $ToolsFile | Where-Object { $_.Trim() } }
 $toolDirs += "$env:ProgramFiles\nodejs", "$env:ProgramFiles\Git\cmd"
-$toolDirs += Get-ChildItem "C:\Users\*\AppData\Local\Microsoft\WinGet\Links" -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+$toolDirs += Get-Item "C:\Users\*\AppData\Local\Microsoft\WinGet\Links" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
 foreach ($d in $toolDirs) {
   if ($d -and (Test-Path $d) -and (($env:PATH -split ';') -notcontains $d)) { $env:PATH = "$env:PATH;$d" }
 }
