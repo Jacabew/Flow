@@ -30,6 +30,10 @@ if ($nodeMajor -lt 22) { throw "Node $nodeMajor found; DS Flow needs Node 22 or 
 $App = Join-Path $Root "app"
 New-Item -ItemType Directory -Force -Path $Root, "$Root\data", "$Root\logs", "$Root\secrets", "$Root\deploy-state" | Out-Null
 
+# The deploy task runs as SYSTEM and can't see per-user tool folders (e.g. WinGet Links).
+# Record where git/node/nssm live so flow-deploy.ps1 can find them.
+"git", "node", "nssm" | ForEach-Object { Split-Path (Get-Command $_).Source } | Sort-Object -Unique | Set-Content (Join-Path $Root "tools-path.txt")
+
 # --- GitHub access (read-only) --------------------------------------------------------
 # The deploy task runs as SYSTEM, so it can't use Jake's personal git login.
 # If the repo is private, paste a fine-grained GitHub token with read-only "Contents"

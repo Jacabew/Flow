@@ -28,6 +28,19 @@ $NtfyFile = Join-Path $Root "secrets\ntfy-topic.txt"
 
 New-Item -ItemType Directory -Force -Path $StateDir, (Split-Path $LogFile), $StatusDir | Out-Null
 
+# --- Tool paths ----------------------------------------------------------------------------
+# This task runs as SYSTEM, which only sees the machine PATH. Tools installed per-user
+# (e.g. nssm via WinGet into AppData\Local\Microsoft\WinGet\Links) are invisible to it.
+# install.ps1 records the folders it found git/node/nssm in; we also try common locations.
+$toolDirs = @()
+$ToolsFile = Join-Path $Root "tools-path.txt"
+if (Test-Path $ToolsFile) { $toolDirs += Get-Content $ToolsFile | Where-Object { $_.Trim() } }
+$toolDirs += "$env:ProgramFiles\nodejs", "$env:ProgramFiles\Git\cmd"
+$toolDirs += Get-ChildItem "C:\Users\*\AppData\Local\Microsoft\WinGet\Links" -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+foreach ($d in $toolDirs) {
+  if ($d -and (Test-Path $d) -and (($env:PATH -split ';') -notcontains $d)) { $env:PATH = "$env:PATH;$d" }
+}
+
 function Log([string]$msg) {
   $line = "{0}  {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $msg
   Add-Content -Path $LogFile -Value $line
