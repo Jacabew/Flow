@@ -9,10 +9,10 @@ Build sessions take the first unchecked item. Keep items small (one session each
 - [x] GitHub Actions CI (Node 22 + 24)
 - [x] HUB auto-deploy script: pull → test on HUB → restart → health check → auto-rollback → status to OneDrive
 - [x] HUB one-time installer (service + 5-minute deploy task)
-- [ ] **Jake (Wed session):** run `deploy/hub/install.ps1` on the HUB once
+- [x] **Jake (Wed session):** run `deploy/hub/install.ps1` on the HUB once (done 15 Nov, healthy, 7 flows)
 - [x] Nightly scheduled build task (10:36pm Brisbane, auto-approve) created
 - [ ] Confirm first auto-deploy landed (read OneDrive\FLOW\status\deploy-status.json) — needs the linked computer; skip if not available
-- [ ] Refresh the OneDrive\FLOW\install.ps1 copy from `deploy/hub/install.ps1` (now sets FLOW_STATUS_DIR) — needs the linked computer; skip if not available
+- [x] (Not needed: Jake installed from the GitHub copy on 15 Nov) Refresh the OneDrive\FLOW\install.ps1 copy from `deploy/hub/install.ps1` (now sets FLOW_STATUS_DIR) — needs the linked computer; skip if not available
 
 ## Phase 1 — engine hardening
 - [x] Watchdog flow: alert if heartbeat hasn't succeeded in 15 min
