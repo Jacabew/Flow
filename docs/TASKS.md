@@ -24,6 +24,8 @@ Build sessions take the first unchecked item. Keep items small (one session each
 
 - [x] Move runs off whole-file JSON to an append-only log (done ahead of the ~5 MB trigger: 30 days of heartbeat/watchdog runs would pass it)
 
+- [ ] Catch up daily-at runs missed while the HUB was off or restarting (persist last run per flow; on start, run once if today's slot passed and it hasn't run). Stops a reboot at the wrong minute breaking the Xero 7/7 or recurring 31/31 shadow streaks
+
 ## Phase 2 — approval inbox + Mission Control tile
 - [x] Mobile web page at /inbox: list pending approvals, approve/reject buttons (login with API key once, remembered)
 - [x] Decide how Jake reaches /inbox from his phone (Caddy route on HUB vs DSOS proxies it) → DSOS_REQUESTS if DSOS
