@@ -1,5 +1,7 @@
 # Changes DS Flow needs from DSOS
 DS Flow never edits DSOS. Jake takes these to the DSOS Build project when ready.
+
+**16 Nov 2026: all 5 approved by Jake and sent to the DSOS Build project** as `claude/CLAUDE_CODE_PROMPT_DS_FLOW_HOOKUP.md` (order there: token, Xero status, recurring list, tile, phone route).
 Both assume DS Flow is installed on the HUB (port 5680, bound to 127.0.0.1).
 
 ## 1. Caddy route so Jake's phone can reach the approval inbox (added 27 Oct)
