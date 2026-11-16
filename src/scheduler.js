@@ -5,6 +5,11 @@
 //   { schedule: { dailyAt: '07:30', days: ['Mon','Fri'] } } // day names work too
 //   { schedule: { weekly: 'Mon,Wed 07:30' } }       // shorthand for the line above
 // Schedules are checked when a flow is registered, so a typo fails loudly instead of never firing.
+//
+// Catch-up: the last scheduled run of every daily/weekly flow is kept in the store
+// (collection schedule_state). If the HUB was off or restarting at a flow's slot, the flow
+// runs once as soon as DS Flow is back, as long as it is still the same Brisbane day.
+// Input then carries catchUp: true. A flow with no record of ever running is not caught up.
 const BRISBANE_OFFSET_MIN = 10 * 60;
 
 export function brisbaneParts(date) {
@@ -61,16 +66,73 @@ export function isDue(rawSchedule, date, lastRunAt) {
   return false;
 }
 
+// Today's (Brisbane) slot for a daily/weekly schedule as a Date, or null if it has none today.
+export function slotToday(rawSchedule, date) {
+  const schedule = normalizeSchedule(rawSchedule);
+  if (!schedule.dailyAt) return null;
+  const p = brisbaneParts(date);
+  if (schedule.days && !schedule.days.includes(p.day)) return null;
+  const [h, m] = schedule.dailyAt.split(':').map(Number);
+  const midnight = date.getTime() - (p.minuteOfDay * 60_000 + (date.getTime() % 60_000));
+  return new Date(midnight + (h * 60 + m) * 60_000);
+}
+
+// The slot a daily/weekly flow missed today, or null. Needs a known last run: without one we
+// can't tell "missed" from "never ran", and a brand-new flow shouldn't fire on deploy.
+export function missedSlot(rawSchedule, date, lastRunAt) {
+  if (!lastRunAt) return null;
+  const slot = slotToday(rawSchedule, date);
+  if (!slot) return null;
+  if (date.getTime() < slot.getTime() + 60_000) return null; // not passed yet, or isDue's minute
+  if (Date.parse(lastRunAt) >= slot.getTime()) return null; // already ran (or caught up) today
+  return slot;
+}
+
+const STATE = 'schedule_state';
+
+function loadLastRuns(store, flows) {
+  const out = new Map();
+  for (const flow of flows) {
+    const saved = store.get(STATE, `sched:${flow.id}`)?.lastRunAt;
+    // First start with this feature: fall back to the run log.
+    const fromRuns = saved ? null : store.list('runs', (r) => r.flowId === flow.id && r.source === 'schedule').at(-1)?.startedAt;
+    const last = saved ?? fromRuns;
+    if (last) out.set(flow.id, last);
+  }
+  return out;
+}
+
+function saveLastRun(store, flowId, at) {
+  try {
+    const id = `sched:${flowId}`;
+    if (store.get(STATE, id)) store.update(STATE, id, { lastRunAt: at });
+    else store.insert(STATE, { id, flowId, lastRunAt: at });
+  } catch (err) {
+    console.error(`Scheduler: could not save last run for ${flowId}: ${err.message}`);
+  }
+}
+
 export function startScheduler(engine, { tickMs = 30_000, now = () => new Date() } = {}) {
-  const lastRun = new Map();
+  const daily = [...engine.flows.values()].filter((f) => f.schedule && normalizeSchedule(f.schedule).dailyAt);
+  const lastRun = engine.store ? loadLastRuns(engine.store, daily) : new Map();
+  const isDaily = new Set(daily.map((f) => f.id));
   const tick = async () => {
     const date = now();
     for (const flow of engine.flows.values()) {
       if (!flow.schedule || !engine.isEnabled(flow.id)) continue;
-      if (isDue(flow.schedule, date, lastRun.get(flow.id))) {
-        lastRun.set(flow.id, date.toISOString());
-        engine.trigger(flow.id, { scheduledAt: date.toISOString() }, 'schedule').catch(() => {});
+      const last = lastRun.get(flow.id);
+      let input = null;
+      if (isDue(flow.schedule, date, last)) {
+        input = { scheduledAt: date.toISOString() };
+      } else if (isDaily.has(flow.id)) {
+        const missed = missedSlot(flow.schedule, date, last);
+        if (missed) input = { scheduledAt: missed.toISOString(), catchUp: true };
       }
+      if (!input) continue;
+      lastRun.set(flow.id, date.toISOString());
+      if (isDaily.has(flow.id) && engine.store) saveLastRun(engine.store, flow.id, date.toISOString());
+      if (input.catchUp) console.log(`Scheduler: catching up ${flow.id} (missed ${input.scheduledAt})`);
+      engine.trigger(flow.id, input, 'schedule').catch(() => {});
     }
   };
   const handle = setInterval(tick, tickMs);

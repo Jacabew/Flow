@@ -74,3 +74,10 @@ nssm on the HUB is a per-user WinGet install, invisible to the SYSTEM account th
 
 ## 2026-11-16 — ntfy topic kept short for now
 Jake chose a short, guessable ntfy topic to keep it simple, knowing others could read or send to it. Alerts carry only flow names and error text, never tokens or money. Revisit if a stray alert ever appears (one-line change in C:\Flow\secrets\ntfy-topic.txt).
+
+## 2026-11-16 — Catch-up of missed daily runs (Claude)
+- **Today only.** A slot missed yesterday is not run today. Every daily flow works on "now" (today's back-feed, tomorrow's invoices, yesterday's summary), so a late run on the wrong day would record the wrong day. A whole missed day shows as a gap, which is honest.
+- **No history = no catch-up.** A flow that has never run on schedule doesn't fire on its first deploy in the afternoon; it waits for its first slot.
+- **Also catches late ticks**, not just restarts (PC sleep, a hung tick), using the same rule.
+- **No alert for a catch-up.** It's a normal run (logged, `catchUp: true`); if it fails, the usual failure alert fires. Restarts that miss nothing stay silent.
+- **Skipped** the Xero back-feed switch-over (gated on 7/7 days) and "first agent live" (waits on Jake's yes). Nothing else unchecked is buildable.

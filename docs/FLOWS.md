@@ -34,6 +34,7 @@ export default {
 | On demand | Always: `POST /api/flows/<id>/run` (client: `runFlow`). |
 
 A bad schedule fails at load, so a typo can't silently never fire.
+Daily/weekly flows missed while the HUB was off run once when it's back, same Brisbane day only, with `input.catchUp: true`. Make them safe to run late.
 
 ### Step types
 Every step: `type`, optional `name` (output lands at `ctx.steps[name]`), `retries`, `retryDelayMs`, `timeoutMs` (default 5 min; 30 s for `http`/`dsos`). Any config value can be a function of `ctx`.
